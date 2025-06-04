@@ -1,12 +1,11 @@
-import { GoogleGenAI } from "@google/genai";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import WordInfo from "./WordInfo";
 import { useNavigate } from "react-router-dom";
+import talkWithAI from "./AI";
 
 const AddWordsPage = () => {
-	const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 	const navigate = useNavigate();
@@ -38,8 +37,6 @@ const AddWordsPage = () => {
 	}
 
 	const run = async (wordsArray) => {
-		const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
 		const prompt = `You are an expert English language assistant.
 
             I will give you a list of English words.
@@ -77,11 +74,7 @@ const AddWordsPage = () => {
 		try {
 			setLoading(true);
 
-			const response = await ai.models.generateContent({
-				model: "gemini-2.0-flash",
-				contents: prompt,
-			});
-			console.log(response.text);
+			const response = await talkWithAI(prompt);
 
 			const finalArray = cleanAndConvertJsonString(response.text);
 			console.log(finalArray);

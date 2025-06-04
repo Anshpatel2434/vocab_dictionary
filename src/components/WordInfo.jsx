@@ -1,11 +1,48 @@
+import axios from "axios";
 import React, { useState } from "react";
 
 const WordInfo = ({ wordInfo }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
+	const [openCount, setOpenCount] = useState(wordInfo.no_of_times_opened || 0);
+	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 	const toggleExpand = () => {
+		const wasExpanded = isExpanded;
 		setIsExpanded(!isExpanded);
+
+		// Call increaseCount when expanding
+		if (!wasExpanded) {
+			increaseCount();
+		}
 	};
+
+	async function increaseCount() {
+		try {
+			const res = await axios.post(
+				`${BACKEND_URL}/api/v1/increase_open_count`,
+				{
+					id: wordInfo._id,
+				}
+			);
+			if (res.status === 200) {
+				console.log(
+					`The no_of_times_opened for ${wordInfo.word} is successfully increased`
+				);
+				// Update local state instead of refetching all words
+				setOpenCount((prev) => prev + 1);
+
+				// Optional: Only refetch if you need to update other components
+				// that display this count elsewhere
+				// fetchWords?.();
+			}
+		} catch (error) {
+			console.log("Error while Increasing count: ", error);
+			toast.error("Error while increasing count");
+			console.log(
+				error.response?.data?.message || "Failed to increase opened count"
+			);
+		}
+	}
 
 	return (
 		<div className="w-full mb-4 bg-black rounded-lg shadow-lg border border-gray-800 overflow-hidden transition-all duration-300 hover:shadow-gray-700/10">
@@ -21,6 +58,12 @@ const WordInfo = ({ wordInfo }) => {
 							{wordInfo.pronunciation}
 						</span>
 					)}
+
+					<span className="ml-3 text-emerald-400 text-md font-medium">
+						{"( "}
+						{openCount}
+						{" )"}
+					</span>
 				</div>
 				<div className="text-blue-400">
 					{isExpanded ? (

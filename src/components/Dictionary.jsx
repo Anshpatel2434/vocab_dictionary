@@ -4,6 +4,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import Pagination from "./Pagination";
 import WordInfo from "./WordInfo";
+import ParaOfWords from "./ParaOfWords";
 
 const Dictionary = () => {
 	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -194,6 +195,8 @@ const Dictionary = () => {
 					</div>
 				</div>
 			</div>
+
+			{!loading && !searchTerm && <ParaOfWords allWords={allWords} />}
 
 			{/* Main Content */}
 			<div className="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
