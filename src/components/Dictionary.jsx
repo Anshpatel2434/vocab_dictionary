@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Pagination from "./Pagination";
 import WordInfo from "./WordInfo";
 import ParaOfWords from "./ParaOfWords";
+import HomeButton from "./HomeButton";
 
 const Dictionary = () => {
 	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -120,6 +121,7 @@ const Dictionary = () => {
 
 			{/* Header Section */}
 			<div className="bg-black shadow-md shadow-blue-900/20">
+				<HomeButton />
 				<div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
 					<div className="flex flex-col md:flex-row md:items-center md:justify-between">
 						<div className="mb-4 md:mb-0">

@@ -21,7 +21,7 @@ const HomePage = () => {
 
 			{/* Main Content */}
 			<div className="flex-grow flex items-center justify-center px-4 py-12">
-				<div className="w-full max-w-3xl mx-auto">
+				<div className="w-full max-w-4xl mx-auto">
 					<div className="bg-gray-900 rounded-2xl shadow-xl border border-gray-800 overflow-hidden">
 						{/* Top Banner */}
 						<div className="bg-gradient-to-r from-blue-900 to-indigo-900 px-6 py-8 sm:px-10">
@@ -34,7 +34,7 @@ const HomePage = () => {
 						</div>
 
 						{/* Options */}
-						<div className="p-6 sm:p-10 grid gap-6 md:grid-cols-2">
+						<div className="p-6 sm:p-10 grid gap-6 lg:grid-cols-3 md:grid-cols-2">
 							{/* Add Words Card */}
 							<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 transition-all duration-300 hover:shadow-lg hover:shadow-blue-900/10 hover:border-blue-700/50 group">
 								<div className="h-16 w-16 rounded-full bg-blue-900/30 border border-blue-800 flex items-center justify-center mb-6 mx-auto md:mx-0 group-hover:bg-blue-800/40 transition-colors duration-300">
@@ -130,6 +130,55 @@ const HomePage = () => {
 										></path>
 									</svg>
 									Explore Dictionary
+								</button>
+							</div>
+
+							{/* Revision & Practice Card */}
+							<div className="bg-gray-800 border border-gray-700 rounded-xl p-6 transition-all duration-300 hover:shadow-lg hover:shadow-purple-900/10 hover:border-purple-700/50 group md:col-span-2 lg:col-span-1">
+								<div className="h-16 w-16 rounded-full bg-purple-900/30 border border-purple-800 flex items-center justify-center mb-6 mx-auto md:mx-0 group-hover:bg-purple-800/40 transition-colors duration-300">
+									<svg
+										className="w-8 h-8 text-purple-400"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth="2"
+											d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+										></path>
+									</svg>
+								</div>
+
+								<h3 className="text-xl font-semibold text-white mb-3 text-center md:text-left">
+									Revision & Practice
+								</h3>
+								<p className="text-gray-400 mb-6 text-center md:text-left">
+									Test your knowledge with interactive sessions, review
+									challenging words, and track your learning progress.
+								</p>
+
+								<button
+									onClick={() => navigate("/revisionSelect")}
+									className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+								>
+									<svg
+										className="w-5 h-5"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth="2"
+											d="M13 10V3L4 14h7v7l9-11h-7z"
+										></path>
+									</svg>
+									Start Practice
 								</button>
 							</div>
 						</div>

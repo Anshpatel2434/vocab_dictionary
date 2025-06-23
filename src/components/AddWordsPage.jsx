@@ -4,6 +4,7 @@ import toast, { Toaster } from "react-hot-toast";
 import WordInfo from "./WordInfo";
 import { useNavigate } from "react-router-dom";
 import talkWithAI from "./AI";
+import HomeButton from "./HomeButton";
 
 const AddWordsPage = () => {
 	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -172,6 +173,7 @@ const AddWordsPage = () => {
 
 			{/* Header Section */}
 			<div className="bg-black shadow-md shadow-blue-900/20">
+				<HomeButton />
 				<div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
 					<div className="flex flex-col md:flex-row md:items-center md:justify-between">
 						<div className="mb-4 md:mb-0">
