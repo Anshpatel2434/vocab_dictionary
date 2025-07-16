@@ -40,37 +40,41 @@ const AddWordsPage = () => {
 	const run = async (wordsArray) => {
 		const prompt = `You are an expert English language assistant.
 
-            I will give you a list of English words.
+I will give you a list of English words.
 
-            For each word, return a JSON object with these fields:
-            {
-            "word": "<the word>",
-            "pronunciation": "<phonetic IPA pronunciation>",
-            "meaning": [
-                { "meaning": "<first meaning (max 10 words)>", "example": "<clear example sentence>" },
-                { "meaning": "<second meaning if available>", "example": "<clear example>" }
-            ],
-            "origin": "<short description of the word's origin or etymology>",
-            "relate_with": "<a simple mental image, association, or situation to help remember this word>",
-            "synonyms": ["<synonym1>", "<synonym2>", "<synonym3>"],
-            "antonyms": ["<antonym1>", "<antonym2>", "<antonym3>"]
-            }
+For each word, return a JSON object with these exact fields:
+{
+  "word": "<the word>",
+  "pronunciation": "<phonetic IPA pronunciation> | <simple phonetic pronunciation, e.g., uhn·taylz>",
+  "meaning": [
+    { "meaning": "<first meaning (max 10 words)>", "example": "<clear example sentence using the word>" },
+    { "meaning": "<second meaning if available>", "example": "<clear example sentence using the word>" }
+  ],
+  "origin": "<short, clear origin like 'Latin', 'Greek', with 1-sentence explanation>",
+  "relate_with": "<a simple mental image, feeling, or situation to help remember this word>",
+  "mnemonic": "<a super short, clever, and highly memorable phrase or sound-alike trick that directly hints at the word's meaning. It should be instantly recalled and directly connect to what the word means. Prioritize creative acronyms or vivid sound-alikes that make the meaning 'click'. Avoid simple, technical splits like 'PRE + JUDGE'. For example: 'Ubiquitous: U B Quick To See It Everywhere.' (means found everywhere). 'Ephemeral: Every Photo Eventually Melts Away, Really A Little.' (means short-lived). 'Cacophony: Cats And Cows Often Fight, Oh No! Yikes!' (means loud, messy noise).>",
+  "breakdown": "<a simple, vivid, story-based, or visual explanation that directly clarifies how the 'mnemonic' helps remember the word's meaning. Explain the connection between the mnemonic's parts and the word's definition. For example: 'For Ubiquitous (U B Quick To See It Everywhere): This mnemonic uses the sound of 'U B Quick' to remind you of 'ubiquitous' and then tells you that something 'everywhere' is quick to see, linking the sound to the meaning.' 'For Ephemeral (Every Photo Eventually Melts Away, Really A Little): This mnemonic starts with 'Every Photo' (EP) to sound like 'ephemeral' and then uses the idea of photos 'melting away' quickly to show it means lasting only a very short time.' 'For Cacophony (Cats And Cows Often Fight, Oh No! Yikes!): This mnemonic uses the first sounds 'Ca-Co' to remind you of 'cacophony' and then paints a picture of fighting cats and cows, making a very loud, messy noise.'>",
+  "synonyms": ["<synonym1>", "<synonym2>", "<synonym3>"],
+  "antonyms": ["<antonym1>", "<antonym2>", "<antonym3>"]
+}
 
-            Important rules:
-            ✅ Always give at least one meaning & example.  
-            ✅ If multiple common meanings exist, provide them (up to 2).  
-            ✅ Provide a **short, clear origin** (like 'Latin', 'Greek', 'Old French', 'Middle English', etc.) and explain briefly.
-            ✅ Always provide **3 synonyms** and **3 antonyms** (or say "none" if unavailable).  
-            ✅ Pronunciation must use **IPA** symbols.  
-            ✅ The "relate_with" field should provide something memorable, like:
-            - a visual (e.g., "imagine a cliff edge")
-            - an emotion (e.g., "feeling of sudden fall")
-            - a life situation (e.g., "remember getting late marks applied retroactively")
+Important instructions:
+✅ Always give at least one meaning & example.
+✅ If there are multiple common meanings, provide them (up to 2).
+✅ Use **clear, simple, child-friendly English** throughout.
+✅ For "mnemonic", prioritize:
+  - **Creative, meaning-rich acronyms or phrases** using the letters.
+  - **Sound-alike tricks** that directly hint at the meaning.
+  - The mnemonic must be **instantly helpful for recall** and not just a mechanical split or addition. It should make the meaning 'click'.
+  - Make it instantly memorable and intuitive for recall, avoiding complex or technical breakdowns.
+  - Ensure it directly reflects the meaning with a vivid image or action.
+✅ For "breakdown", give a **visual, story-based, or situation-based memory hook** in plain English. This must directly explain how the *mnemonic* helps remember the word's meaning.
+✅ For "pronunciation", provide both the **IPA** and a **simple, easy-to-read phonetic spelling** (using standard English letters and dots for syllables).
+✅ Use common, simple English words for synonyms and antonyms if available.
+✅ Return **only** a **valid JSON array** with no extra explanation.
 
-            Finally, return **only** a valid JSON array with no extra explanation.
-
-            Here is the list of words:
-            ${wordsArray.join(", ")}`;
+Here is the list of words:
+${wordsArray.join(", ")}`;
 
 		try {
 			setLoading(true);

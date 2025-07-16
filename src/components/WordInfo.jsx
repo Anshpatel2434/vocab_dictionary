@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const WordInfo = ({ wordInfo }) => {
 	const [isExpanded, setIsExpanded] = useState(false);
@@ -9,188 +10,203 @@ const WordInfo = ({ wordInfo }) => {
 	const toggleExpand = () => {
 		const wasExpanded = isExpanded;
 		setIsExpanded(!isExpanded);
-
-		// Call increaseCount when expanding
 		if (!wasExpanded) {
 			increaseCount();
 		}
 	};
 
-	async function increaseCount() {
-		try {
-			const res = await axios.post(
-				`${BACKEND_URL}/api/v1/increase_open_count`,
-				{
-					id: wordInfo._id,
-				}
-			);
-			if (res.status === 200) {
-				console.log(
-					`The no_of_times_opened for ${wordInfo.word} is successfully increased`
-				);
-				// Update local state instead of refetching all words
-				setOpenCount((prev) => prev + 1);
+	// async function increaseCount() {
+	// 	try {
+	// 		const res = await axios.post(
+	// 			`${BACKEND_URL}/api/v1/increase_open_count`,
+	// 			{ id: wordInfo._id }
+	// 		);
+	// 		if (res.status === 200) {
+	// 			setOpenCount((prev) => prev + 1);
+	// 		}
+	// 	} catch (error) {
+	// 		console.error("Error increasing count:", error);
+	// 	}
+	// }
 
-				// Optional: Only refetch if you need to update other components
-				// that display this count elsewhere
-				// fetchWords?.();
+	// Highlight matching parts in mnemonic
+	const highlightMnemonic = (mnemonic, word) => {
+		const wordUpper = word.toUpperCase();
+		const parts = [];
+		let wordIndex = 0;
+		let lastIndex = 0;
+
+		for (let i = 0; i < mnemonic.length; i++) {
+			const mnemonicChar = mnemonic[i].toUpperCase();
+			if (
+				wordIndex < wordUpper.length &&
+				mnemonicChar === wordUpper[wordIndex]
+			) {
+				// Push preceding non-highlighted text
+				if (lastIndex < i) {
+					parts.push(
+						<span key={`text-${lastIndex}`}>
+							{mnemonic.slice(lastIndex, i)}
+						</span>
+					);
+				}
+				// Push highlighted letter
+				parts.push(
+					<span key={`highlight-${i}`} className="font-bold text-yellow-400">
+						{mnemonic[i]}
+					</span>
+				);
+				wordIndex++;
+				lastIndex = i + 1;
 			}
-		} catch (error) {
-			console.log("Error while Increasing count: ", error);
-			toast.error("Error while increasing count");
-			console.log(
-				error.response?.data?.message || "Failed to increase opened count"
-			);
 		}
-	}
+		// Push remaining text
+		if (lastIndex < mnemonic.length) {
+			parts.push(<span key={`text-end`}>{mnemonic.slice(lastIndex)}</span>);
+		}
+
+		return parts;
+	};
 
 	return (
-		<div className="w-full mb-4 bg-black rounded-lg shadow-lg border border-gray-800 overflow-hidden transition-all duration-300 hover:shadow-gray-700/10">
-			{/* Word header (always visible) */}
+		<div className="w-full mb-3 bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-2xl border border-neutral-700 shadow-md hover:shadow-xl transition-all duration-300">
 			<button
 				onClick={toggleExpand}
-				className="w-full flex justify-between items-center p-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+				className="w-full flex justify-between items-center px-5 py-3 text-left focus:outline-none hover:bg-neutral-700/50 rounded-t-2xl transition-colors duration-200"
 			>
-				<div className="flex items-center">
-					<h2 className="text-xl font-bold text-white">{wordInfo.word}</h2>
+				<div className="flex items-center gap-4">
+					<h2 className="text-xl font-bold text-white tracking-tight">
+						{wordInfo.word}
+					</h2>
 					{wordInfo.pronunciation && (
-						<span className="ml-3 text-cyan-400 text-sm font-medium">
+						<span className="text-sm text-blue-300 font-medium">
 							{wordInfo.pronunciation}
 						</span>
 					)}
-
-					<span className="ml-3 text-emerald-400 text-md font-medium">
-						{"( "}
+					<span className="text-xs text-green-300 bg-green-900/30 px-2.5 py-1 rounded-full font-semibold">
 						{openCount}
-						{" )"}
 					</span>
 				</div>
-				<div className="text-blue-400">
-					{isExpanded ? (
-						<svg
-							className="w-5 h-5 transform transition-transform duration-300"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth="2"
-								d="M5 15l7-7 7 7"
-							></path>
-						</svg>
-					) : (
-						<svg
-							className="w-5 h-5 transform transition-transform duration-300"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth="2"
-								d="M19 9l-7 7-7-7"
-							></path>
-						</svg>
-					)}
-				</div>
+				{isExpanded ? (
+					<ChevronUp className="text-blue-400 w-6 h-6 transition-transform duration-300" />
+				) : (
+					<ChevronDown className="text-blue-400 w-6 h-6 transition-transform duration-300" />
+				)}
 			</button>
 
-			{/* Expandable content with smooth animation */}
 			<div
 				className={`overflow-hidden transition-all duration-500 ease-in-out ${
 					isExpanded ? "max-h-screen opacity-100" : "max-h-0 opacity-0"
 				}`}
 			>
-				<div className="px-4 pb-4 text-gray-300">
-					{/* Meanings and examples */}
-					{wordInfo?.meaning && wordInfo.meaning.length > 0 && (
-						<div className="mb-4 border-t border-gray-800 pt-4">
-							<h3 className="text-blue-400 font-semibold mb-2">
+				<div className="px-5 pb-4 text-gray-200 text-sm space-y-5">
+					{/* Meanings */}
+					{wordInfo?.meaning?.length > 0 && (
+						<section>
+							<h3 className="text-blue-400 font-semibold text-base mb-2">
 								Meaning & Examples
 							</h3>
 							{wordInfo.meaning.map((item, index) => (
 								<div
 									key={index}
-									className="mb-3 pl-2 border-l-2 border-blue-800"
+									className="border-l-2 border-blue-600 pl-4 mt-1.5"
 								>
-									<div className="text-yellow-300 font-medium">
-										{item.meaning}
-									</div>
+									<p className="text-yellow-300 font-medium">{item.meaning}</p>
 									{item.example && (
-										<div className="mt-1 text-amber-200/80 italic">
+										<p className="italic text-yellow-200/80 mt-1">
 											"{item.example}"
-										</div>
+										</p>
 									)}
 								</div>
 							))}
-						</div>
+						</section>
 					)}
 
 					{/* Origin */}
 					{wordInfo.origin && (
-						<div className="mb-4 border-t border-gray-800 pt-4">
-							<h3 className="text-blue-400 font-semibold mb-2">Origin</h3>
-							<div className="text-teal-300">{wordInfo.origin}</div>
-						</div>
+						<section>
+							<h3 className="text-blue-400 font-semibold text-base mb-2">
+								Origin
+							</h3>
+							<p className="text-green-300">{wordInfo.origin}</p>
+						</section>
 					)}
 
-					{/* Related with */}
+					{/* Relate With */}
 					{wordInfo.relate_with && (
-						<div className="mb-4 border-t border-gray-800 pt-4">
-							<h3 className="text-blue-400 font-semibold mb-2">Related With</h3>
-							<div className="text-orange-300">{wordInfo.relate_with}</div>
-						</div>
+						<section>
+							<h3 className="text-blue-400 font-semibold text-base mb-2">
+								Relate With
+							</h3>
+							<p className="text-orange-300">{wordInfo.relate_with}</p>
+						</section>
 					)}
 
-					{/* Synonyms and Antonyms */}
+					{/* Mnemonic */}
+					{wordInfo.mnemonic && (
+						<section>
+							<h3
+								className="text-blue-400 font-semibold text-base mb-2
+
+"
+							>
+								Mnemonic
+							</h3>
+							<p className="text-pink-300">
+								{highlightMnemonic(wordInfo.mnemonic, wordInfo.word)}
+							</p>
+						</section>
+					)}
+
+					{/* Breakdown */}
+					{wordInfo.breakdown && (
+						<section>
+							<h3 className="text-blue-400 font-semibold text-base mb-2">
+								Breakdown
+							</h3>
+							<p className="text-lime-300">{wordInfo.breakdown}</p>
+						</section>
+					)}
+
+					{/* Synonyms & Antonyms */}
 					{(wordInfo?.synonyms?.length > 0 ||
 						wordInfo?.antonyms?.length > 0) && (
-						<div className="border-t border-gray-800 pt-4">
-							<div className="flex flex-wrap gap-4">
-								{/* Synonyms */}
-								{wordInfo?.synonyms?.length > 0 && (
-									<div className="flex-1 min-w-fit">
-										<h3 className="text-blue-400 font-semibold mb-2">
-											Synonyms
-										</h3>
-										<div className="flex flex-wrap gap-2">
-											{wordInfo.synonyms.map((item, index) => (
-												<span
-													key={index}
-													className="px-2 py-1 bg-green-900/40 text-green-400 rounded text-sm border border-green-700/50 transition-all duration-200 hover:bg-green-900/60"
-												>
-													{item}
-												</span>
-											))}
-										</div>
+						<section className="flex flex-wrap gap-6 pt-3 border-t border-neutral-700">
+							{wordInfo?.synonyms?.length > 0 && (
+								<div>
+									<h3 className="text-blue-400 font-semibold text-base mb-2">
+										Synonyms
+									</h3>
+									<div className="flex flex-wrap gap-2">
+										{wordInfo.synonyms.map((syn, idx) => (
+											<span
+												key={idx}
+												className="bg-green-900/40 text-green-300 border border-green-600/50 rounded-full px-3 py-1 text-xs font-medium hover:bg-green-800/50 transition-colors duration-200"
+											>
+												{syn}
+											</span>
+										))}
 									</div>
-								)}
-
-								{/* Antonyms */}
-								{wordInfo?.antonyms?.length > 0 && (
-									<div className="flex-1 min-w-fit">
-										<h3 className="text-blue-400 font-semibold mb-2">
-											Antonyms
-										</h3>
-										<div className="flex flex-wrap gap-2">
-											{wordInfo.antonyms.map((item, index) => (
-												<span
-													key={index}
-													className="px-2 py-1 bg-red-900/40 text-red-400 rounded text-sm border border-red-700/50 transition-all duration-200 hover:bg-red-900/60"
-												>
-													{item}
-												</span>
-											))}
-										</div>
+								</div>
+							)}
+							{wordInfo?.antonyms?.length > 0 && (
+								<div>
+									<h3 className="text-blue-400 font-semibold text-base mb-2">
+										Antonyms
+									</h3>
+									<div className="flex flex-wrap gap-2">
+										{wordInfo.antonyms.map((ant, idx) => (
+											<span
+												key={idx}
+												className="bg-red-900/40 text-red-300 border border-red-600/50 rounded-full px-3 py-1 text-xs font-medium hover:bg-red-800/50 transition-colors duration-200"
+											>
+												{ant}
+											</span>
+										))}
 									</div>
-								)}
-							</div>
-						</div>
+								</div>
+							)}
+						</section>
 					)}
 				</div>
 			</div>
