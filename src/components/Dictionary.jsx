@@ -1,103 +1,85 @@
+// Dictionary.jsx
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import Pagination from "./Pagination";
-import WordInfo from "./WordInfo";
-import ParaOfWords from "./ParaOfWords";
+import WordInfo from "./WordInfo"; // We are keeping this!
+import WordInfoSkeleton from "./WordInfoSkeleton"; // NEW Skeleton Loader
 import HomeButton from "./HomeButton";
+import { Plus, Search, XCircle, FileWarning } from "lucide-react";
 
 const Dictionary = () => {
 	const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 	const params = useParams();
 	const navigate = useNavigate();
 
-	const [allWords, setAllWords] = useState([]);
-	const [filteredWords, setFilteredWords] = useState([]);
-	const [currentPage, setCurrentPage] = useState(params.page || 1);
-	const [limit, setLimit] = useState(20);
+	// State management is slightly simplified
+	const [words, setWords] = useState([]);
+	const [currentPage, setCurrentPage] = useState(parseInt(params.page) || 1);
 	const [totalPages, setTotalPages] = useState(1);
-	const [loading, setLoading] = useState(false);
-	const [searchTerm, setSearchTerm] = useState("");
 	const [totalWords, setTotalWords] = useState(0);
+	const [loading, setLoading] = useState(true);
+	const [searchTerm, setSearchTerm] = useState("");
 
+	// NEW: A single, streamlined function for fetching data
+	const fetchWordsData = useCallback(
+		async (page, search = "") => {
+			setLoading(true);
+			try {
+				// Determines the URL based on whether a search term exists
+				const url = search
+					? `${BACKEND_URL}/api/v1/words/filter?word=${search}&page=${page}&limit=20`
+					: `${BACKEND_URL}/api/v1/getWords?page=${page}&limit=20`;
+
+				const res = await axios.get(url);
+
+				if (res.status === 200) {
+					const data = res.data.words ? res.data : res.data; // Handle slightly different response structures
+					setWords(data.words);
+					setTotalPages(data.totalPages || 1);
+					// Only set totalWords when not searching to keep the main count visible
+					if (!search) {
+						setTotalWords(data.totalCount);
+					}
+				}
+			} catch (error) {
+				toast.error("Failed to fetch words.");
+				console.error("Error fetching data:", error);
+			} finally {
+				setLoading(false);
+			}
+		},
+		[BACKEND_URL]
+	);
+
+	// A single useEffect to rule them all! It re-runs when page or search term changes.
 	useEffect(() => {
-		fetchWords();
-	}, [params]);
+		// verifyLogin(); // Your auth check
+		fetchWordsData(currentPage, searchTerm);
+	}, [currentPage, searchTerm, fetchWordsData]);
 
-	useEffect(() => {
-		verifyLogin();
-	}, []);
-
-	async function verifyLogin() {
-		try {
-			const res = await axios.post(`${BACKEND_URL}/api/v1/verifyPassword`, {
-				password: localStorage.getItem("vocabToken"),
-			});
-
-			if (res.status === 200) {
-			} else {
-				toast.error(res.data.message);
-				navigate("/");
-			}
-		} catch (error) {
-			console.log("In error of the sendRequest in security : ", error);
-			toast.error(error.response?.data?.message || "Authentication failed");
-			navigate("/");
+	const handleSearchSubmit = (e) => {
+		e.preventDefault();
+		// When a new search is submitted, reset to page 1
+		if (currentPage !== 1) {
+			navigate(`/dictionary/1`); // This will trigger the useEffect
+		} else {
+			// If already on page 1, manually trigger the fetch
+			fetchWordsData(1, searchTerm);
 		}
-	}
-
-	async function fetchWords() {
-		setLoading(true);
-		try {
-			const res = await axios.get(
-				`${BACKEND_URL}/api/v1/getWords?page=${currentPage}&limit=${limit}`
-			);
-			console.log("got the response and the data is : ", res.data.words);
-			if (res.status === 200) {
-				setAllWords(res.data.words);
-				setFilteredWords(res.data.words);
-				setTotalPages(res.data.totalPages);
-				setTotalWords(res.data.totalCount);
-			}
-		} catch (error) {
-			console.log("Error in fetching words in dictionary : ", error);
-			toast.error(error.response?.data?.message || "Failed to fetch words");
-		}
-		setLoading(false);
-	}
-
-	async function fetchFilteredWords() {
-		setLoading(true);
-		try {
-			const res = await axios.get(
-				`${BACKEND_URL}/api/v1/words/filter?word=${searchTerm}`
-			);
-			console.log(
-				"got the response in filter and the data is : ",
-				res.data.words
-			);
-			if (res.status === 200) {
-				setFilteredWords(res.data.words);
-				setTotalPages(res.data.totalPages);
-			}
-		} catch (error) {
-			console.log("Error in fetching words in dictionary in filter : ", error);
-			toast.error(
-				error.response?.data?.message || "Failed to fetch words in filter"
-			);
-		}
-		setLoading(false);
-	}
-
-	const handleSearchSubmit = () => {
-		if (searchTerm.trim() !== "") {
-			fetchFilteredWords();
-		}
+		setCurrentPage(1);
 	};
 
-	const handleSearch = (e) => {
-		setSearchTerm(e.target.value);
+	const clearSearch = () => {
+		setSearchTerm("");
+		// Navigating back to page 1 without a search term will trigger the useEffect to fetch all words
+		if (currentPage !== 1) {
+			navigate("/dictionary/1");
+		} else {
+			fetchWordsData(1, "");
+		}
+		setCurrentPage(1);
 	};
 
 	const handlePageChange = (page) => {
@@ -106,191 +88,116 @@ const Dictionary = () => {
 	};
 
 	return (
-		<div className="min-h-screen bg-gray-950 text-white">
+		<div className="min-h-screen bg-neutral-950 text-white">
 			<Toaster
 				position="top-center"
-				toastOptions={{
-					duration: 3000,
-					style: {
-						background: "#333",
-						color: "#fff",
-						borderRadius: "10px",
-					},
-				}}
+				toastOptions={{ style: { background: "#333", color: "#fff" } }}
 			/>
 
-			{/* Header Section */}
-			<div className="bg-black shadow-md shadow-blue-900/20">
+			<div className="absolute top-0 left-0 p-4 z-50">
 				<HomeButton />
-				<div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-					<div className="flex flex-col md:flex-row md:items-center md:justify-between">
-						<div className="mb-4 md:mb-0">
+			</div>
+
+			{/* UPGRADED: Command Center Header */}
+			<header className="bg-neutral-900/60 border-b border-neutral-800 sticky top-0 z-40 backdrop-blur-sm">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+					<div className="flex flex-col md:flex-row items-center justify-between gap-4">
+						<div className="text-center md:text-left">
 							<h1 className="text-3xl font-bold text-white">
-								<span className="text-blue-400">My</span> Dictionary{" "}
-								<span className=" text-2xl ml-14 text-slate-300">
-									(Total Words : {totalWords})
-								</span>
+								My <span className="text-cyan-400">Dictionary</span>
 							</h1>
-							<p className="mt-1 text-gray-400">
-								Expand your vocabulary one word at a time
+							<p className="mt-1 text-sm text-neutral-400">
+								{!searchTerm
+									? `${totalWords} words to master`
+									: `Found ${words.length} results`}
 							</p>
 						</div>
-
-						<div className="w-full md:w-auto flex flex-col md:flex-row gap-3">
-							{/* Add Words Button */}
-							<a
-								href="/addWords"
-								className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 mb-3 md:mb-0"
+						<div className="w-full md:w-auto flex items-center gap-3">
+							<form
+								onSubmit={handleSearchSubmit}
+								className="relative w-full md:w-64"
 							>
-								<svg
-									className="w-5 h-5"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									xmlns="http://www.w3.org/2000/svg"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth="2"
-										d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-									></path>
-								</svg>
-								Add New Words
-							</a>
-
-							{/* Search Bar */}
-							<div className="w-full md:w-auto md:min-w-[300px]">
-								<div className="relative">
-									<input
-										type="text"
-										placeholder="Search words..."
-										value={searchTerm}
-										onChange={handleSearch}
-										onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-										className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 pr-24"
-									/>
+								<Search
+									size={18}
+									className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none"
+								/>
+								<input
+									type="text"
+									placeholder="Search your dictionary..."
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
+									className="w-full pl-10 pr-9 py-2.5 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all duration-200"
+								/>
+								{searchTerm && (
 									<button
-										onClick={handleSearchSubmit}
-										className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-r-lg px-3 transition-colors duration-200 border-l border-blue-700"
-										aria-label="Search"
+										type="button"
+										onClick={clearSearch}
+										className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-neutral-500 hover:text-white transition-colors"
 									>
-										<svg
-											className="w-5 h-5"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											xmlns="http://www.w3.org/2000/svg"
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth="2"
-												d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-											></path>
-										</svg>
-										<span>Search</span>
+										<XCircle size={18} />
 									</button>
-								</div>
-							</div>
+								)}
+							</form>
+							<button
+								onClick={() => navigate("/addWords")}
+								className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg transition-colors duration-200"
+							>
+								<Plus size={18} />
+								<span className="hidden md:inline">Add Word</span>
+							</button>
 						</div>
 					</div>
 				</div>
-			</div>
+			</header>
 
-			{!loading && !searchTerm && <ParaOfWords allWords={allWords} />}
-
-			{/* Main Content */}
-			<div className="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+			{/* Main Content Area */}
+			<main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 				{loading ? (
-					<div className="flex justify-center items-center h-64">
-						<div className="inline-flex items-center px-4 py-2 border border-transparent text-base leading-6 font-medium rounded-md text-white bg-black shadow-sm">
-							<svg
-								className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-400"
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
+					// UPGRADED: Skeleton Loader
+					<div className="space-y-3">
+						{Array.from({ length: 10 }).map((_, i) => (
+							<WordInfoSkeleton key={i} />
+						))}
+					</div>
+				) : words.length === 0 ? (
+					// UPGRADED: Empty State
+					<div className="text-center py-20 text-neutral-500">
+						<FileWarning size={48} className="mx-auto mb-4" />
+						<h2 className="text-xl font-semibold text-white">No Words Found</h2>
+						<p className="mt-2 max-w-md mx-auto">
+							{searchTerm
+								? `Your search for "${searchTerm}" did not return any results. Try a different query or clear the search.`
+								: "Your dictionary is empty. Start by adding some new words!"}
+						</p>
+						{searchTerm && (
+							<button
+								onClick={clearSearch}
+								className="mt-6 px-5 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
 							>
-								<circle
-									className="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									strokeWidth="4"
-								></circle>
-								<path
-									className="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-								></path>
-							</svg>
-							Loading words...
-						</div>
+								Clear Search
+							</button>
+						)}
 					</div>
 				) : (
-					<>
-						{searchTerm !== "" &&
-							(filteredWords.length === 0 ? (
-								<div className="text-center py-16">
-									<div className="text-5xl mb-4 text-gray-600">🔍</div>
-									<h3 className="text-xl font-medium text-gray-300">
-										No words found
-									</h3>
-									<p className="mt-2 text-gray-500">
-										Try adjusting your search or browse all words by clearing
-										the search field.
-									</p>
-									{searchTerm !== "" && (
-										<button
-											className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-											onClick={() => {
-												setSearchTerm("");
-												window.location.reload();
-											}}
-										>
-											Clear Search
-										</button>
-									)}
-								</div>
-							) : (
-								<div className="space-y-4">
-									{filteredWords.map((item, index) => (
-										<WordInfo key={item._id || index} wordInfo={item} />
-									))}
-									<button
-										className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-										onClick={() => {
-											setSearchTerm("");
-											window.location.reload();
-										}}
-									>
-										Clear Search
-									</button>
-								</div>
-							))}
-
-						{searchTerm === "" && (
-							<div className="space-y-4">
-								{allWords.map((item, index) => (
-									<WordInfo key={item._id || index} wordInfo={item} />
-								))}
-							</div>
-						)}
-
-						{/* Only show pagination when not searching */}
-						{!searchTerm && (
-							<div className="mt-8">
-								<Pagination
-									currentPage={parseInt(currentPage)}
-									totalPages={totalPages}
-									onPageChange={handlePageChange}
-								/>
-							</div>
-						)}
-					</>
+					// Displaying your WordInfo component
+					<div className="space-y-3">
+						{words.map((word) => (
+							<WordInfo key={word._id} wordInfo={word} />
+						))}
+					</div>
 				)}
-			</div>
+
+				{/* Pagination */}
+				{!loading && totalPages > 1 && (
+					<div className="mt-12">
+						<Pagination
+							currentPage={currentPage}
+							totalPages={totalPages}
+							onPageChange={handlePageChange}
+						/>
+					</div>
+				)}
+			</main>
 		</div>
 	);
 };

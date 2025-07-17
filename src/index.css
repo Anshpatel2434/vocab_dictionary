@@ -1,1 +1,85 @@
 @import "tailwindcss";
+
+/* Custom utility for staggered animation */
+.animate-stagger-in > * {
+  animation: fade-in 0.5s ease-out forwards;
+  /* You can also define animation-fill-mode directly in the keyframes */
+}
+
+/* For 3D card flip effect */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Add or ensure you have this keyframe animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* We'll use a class to apply it */
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* Custom utility for staggered animation */
+.animate-stagger-in {
+  opacity: 0; /* Start hidden */
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* NEW: Subtle grid background pattern */
+.bg-grid-pattern {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 3rem 3rem;
+}
+
+/* NEW: Keyframe for fade-in with downward motion */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* NEW: Keyframe for staggered items */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.8s ease-out forwards;
+}
+
+.animate-stagger-in {
+  opacity: 0; /* Start hidden */
+  animation: stagger-in 0.6s ease-out forwards;
+}

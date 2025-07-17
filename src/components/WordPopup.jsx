@@ -1,15 +1,23 @@
 import React, { useEffect, useRef } from "react";
+import {
+	BookOpen,
+	Anchor,
+	Lightbulb,
+	BrainCircuit,
+	Puzzle,
+	X,
+} from "lucide-react";
 
 const WordPopup = ({ word, onClose, position }) => {
 	const popupRef = useRef(null);
 
+	// Click outside and Escape key listeners
 	useEffect(() => {
 		const handleClickOutside = (event) => {
 			if (popupRef.current && !popupRef.current.contains(event.target)) {
 				onClose();
 			}
 		};
-
 		const handleEscapeKey = (event) => {
 			if (event.key === "Escape") {
 				onClose();
@@ -27,198 +35,141 @@ const WordPopup = ({ word, onClose, position }) => {
 
 	if (!word || !position) return null;
 
-	const getPopupStyle = () => {
-		return {
-			position: "absolute",
-			left: position.x,
-			top: position.y + 20, // small offset below the word
-			transform: "translateX(-50%)",
-			zIndex: 100,
-		};
-	};
+	const getPopupStyle = () => ({
+		position: "absolute",
+		left: `${position.x}px`,
+		top: `${position.y + 25}px`, // Slightly more offset
+		transform: "translateX(-50%)",
+		zIndex: 1000,
+	});
 
-	// Highlight matching parts in mnemonic
-	const highlightMnemonic = (mnemonic, word) => {
-		const wordUpper = word.toUpperCase();
-		const parts = [];
-		let wordIndex = 0;
-		let lastIndex = 0;
-
-		for (let i = 0; i < mnemonic.length; i++) {
-			const mnemonicChar = mnemonic[i].toUpperCase();
-			if (
-				wordIndex < wordUpper.length &&
-				mnemonicChar === wordUpper[wordIndex]
-			) {
-				// Push preceding non-highlighted text
-				if (lastIndex < i) {
-					parts.push(
-						<span key={`text-${lastIndex}`}>
-							{mnemonic.slice(lastIndex, i)}
+	// Re-using the improved pronunciation renderer
+	const renderPronunciation = (pronunciation) => {
+		if (!pronunciation) return null;
+		const parts = pronunciation.split("|");
+		return (
+			<div className="flex items-center text-sm mt-1">
+				<span className="text-blue-300 font-mono tracking-tighter">
+					{parts[0].trim()}
+				</span>
+				{parts[1] && (
+					<>
+						<span className="text-neutral-500 mx-1.5">|</span>
+						<span className="text-blue-200/90 font-medium">
+							{parts[1].trim()}
 						</span>
-					);
-				}
-				// Push highlighted letter
-				parts.push(
-					<span key={`highlight-${i}`} className="font-bold text-yellow-400">
-						{mnemonic[i]}
-					</span>
-				);
-				wordIndex++;
-				lastIndex = i + 1;
-			}
-		}
-		// Push remaining text
-		if (lastIndex < mnemonic.length) {
-			parts.push(<span key={`text-end`}>{mnemonic.slice(lastIndex)}</span>);
-		}
-
-		return parts;
+					</>
+				)}
+			</div>
+		);
 	};
 
 	return (
-		<div style={getPopupStyle()} className="z-50">
-			{/* Tail pointer */}
-			<div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-				<div className="w-4 h-4 bg-gradient-to-br from-neutral-900 to-neutral-800 border-l border-t border-neutral-700 rotate-45"></div>
-			</div>
-
-			{/* Popup container */}
+		<div style={getPopupStyle()}>
+			{/* NEW: Added group class and smooth entry animation */}
 			<div
 				ref={popupRef}
-				className="relative bg-gradient-to-br from-neutral-900 to-neutral-800 border border-neutral-700 rounded-2xl shadow-md hover:shadow-xl p-5 w-80 max-h-[70vh] overflow-y-auto animate-fade-in transition-all duration-200"
+				className="group relative w-80 max-w-sm animate-fade-scale-in"
 			>
-				{/* Header */}
-				<div className="flex justify-between items-start mb-4 pb-2 border-b border-neutral-700">
-					<div>
-						<h3 className="text-lg font-bold text-white tracking-tight">
-							{word.word}
-						</h3>
-						{word.pronunciation && (
-							<p className="text-blue-300 text-sm mt-1">
-								/{word.pronunciation}/
-							</p>
-						)}
-					</div>
-					<button
-						onClick={onClose}
-						className="text-gray-400 hover:text-blue-400 text-lg px-2 rounded hover:bg-neutral-700/50 transition-colors duration-200"
-						aria-label="Close popup"
-					>
-						×
-					</button>
+				{/* NEW: Tail pointer with gradient glow */}
+				<div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-neutral-800 border-l border-t border-neutral-700 rotate-45 z-0">
+					<div className="absolute inset-0 bg-gradient-to-br from-cyan-500/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
 				</div>
 
-				{/* Content */}
-				<div className="space-y-4 text-sm text-gray-200">
-					{/* Meanings */}
-					{word.meaning?.length > 0 && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Meanings
-							</h4>
-							{word.meaning.map((m, i) => (
-								<div key={i} className="mb-2">
-									<p className="text-yellow-300 font-medium leading-relaxed">
-										{m.meaning}
-									</p>
-									{m.example && (
-										<p className="text-yellow-200/80 text-xs italic mt-1 pl-3 border-l border-blue-600">
-											"{m.example}"
+				{/* NEW: Container with gradient glow effect */}
+				<div className="relative rounded-2xl bg-neutral-900 p-[1px] shadow-2xl shadow-black/50">
+					<div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/50 to-blue-500/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-lg"></div>
+
+					<div className="relative bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-[15px] p-5 max-h-[75vh] overflow-y-auto">
+						{/* Header */}
+						<div className="flex justify-between items-start pb-3 mb-3 border-b border-neutral-700">
+							<div>
+								<h3 className="text-lg font-bold text-white tracking-tight">
+									{word.word}
+								</h3>
+								{renderPronunciation(word.pronunciation)}
+							</div>
+							<button
+								onClick={onClose}
+								className="p-1.5 text-neutral-400 rounded-full hover:bg-neutral-700/80 hover:text-white transition-colors duration-200"
+								aria-label="Close popup"
+							>
+								<X size={18} />
+							</button>
+						</div>
+
+						{/* Content Body */}
+						<div className="space-y-4 text-sm text-gray-200">
+							{/* Meanings */}
+							{word.meaning?.length > 0 && (
+								<div className="space-y-2">
+									{word.meaning.map((m, i) => (
+										<div key={i}>
+											<p className="flex items-start gap-2 text-yellow-300 font-medium">
+												<BookOpen
+													size={16}
+													className="mt-0.5 flex-shrink-0 text-blue-400"
+												/>
+												<span>{m.meaning}</span>
+											</p>
+											{m.example && (
+												<p className="text-yellow-200/70 text-xs italic mt-1 pl-6">
+													"{m.example}"
+												</p>
+											)}
+										</div>
+									))}
+								</div>
+							)}
+
+							{/* Mental Hook */}
+							{word.relate_with && (
+								<div className="bg-cyan-900/40 border border-cyan-700/60 rounded-lg p-3">
+									<h4 className="flex items-center gap-2 text-cyan-300 font-semibold mb-1.5 text-xs uppercase tracking-wider">
+										<Lightbulb size={14} /> Mental Hook
+									</h4>
+									<p className="text-cyan-200 text-sm">{word.relate_with}</p>
+								</div>
+							)}
+
+							{/* Mnemonic and Breakdown */}
+							{word.mnemonic && (
+								<div className="space-y-3">
+									<div>
+										<h4 className="flex items-center gap-2 text-blue-400 font-semibold mb-1.5 text-xs uppercase tracking-wider">
+											<BrainCircuit size={14} /> Mnemonic
+										</h4>
+										<p className="text-pink-300 leading-relaxed">
+											{word.mnemonic}{" "}
+											{/* You can reuse highlightMnemonic here if you pass word.word */}
 										</p>
+									</div>
+									{word.breakdown && (
+										<div>
+											<h4 className="flex items-center gap-2 text-blue-400 font-semibold mb-1.5 text-xs uppercase tracking-wider">
+												<Puzzle size={14} /> Breakdown
+											</h4>
+											<p className="text-lime-300 leading-relaxed">
+												{word.breakdown}
+											</p>
+										</div>
 									)}
 								</div>
-							))}
-						</div>
-					)}
+							)}
 
-					{/* Synonyms */}
-					{word.synonyms?.length > 0 && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Synonyms
-							</h4>
-							<div className="flex flex-wrap gap-2">
-								{word.synonyms.map((syn, i) => (
-									<span
-										key={i}
-										className="px-3 py-1 bg-green-900/40 text-green-300 text-xs rounded-full border border-green-600/50 hover:bg-green-800/50 transition-colors duration-200"
-									>
-										{syn}
-									</span>
-								))}
-							</div>
+							{/* Origin */}
+							{word.origin && (
+								<div>
+									<h4 className="flex items-center gap-2 text-blue-400 font-semibold mb-1.5 text-xs uppercase tracking-wider">
+										<Anchor size={14} /> Origin
+									</h4>
+									<p className="text-green-300 leading-relaxed">
+										{word.origin}
+									</p>
+								</div>
+							)}
 						</div>
-					)}
-
-					{/* Antonyms */}
-					{word.antonyms?.length > 0 && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Antonyms
-							</h4>
-							<div className="flex flex-wrap gap-2">
-								{word.antonyms.map((ant, i) => (
-									<span
-										key={i}
-										className="px-3 py-1 bg-red-900/40 text-red-300 text-xs rounded-full border border-red-600/50 hover:bg-red-800/50 transition-colors duration-200"
-									>
-										{ant}
-									</span>
-								))}
-							</div>
-						</div>
-					)}
-
-					{/* Origin */}
-					{word.origin && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Origin
-							</h4>
-							<p className="text-green-300 leading-relaxed">{word.origin}</p>
-						</div>
-					)}
-
-					{/* Context */}
-					{word.relate_with && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Context
-							</h4>
-							<p className="text-orange-300 leading-relaxed">
-								{word.relate_with}
-							</p>
-						</div>
-					)}
-
-					{/* Mnemonic */}
-					{word.mnemonic && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Mnemonic
-							</h4>
-							<p className="text-pink-300 leading-relaxed">
-								{highlightMnemonic(word.mnemonic, word.word)}
-							</p>
-						</div>
-					)}
-
-					{/* Breakdown */}
-					{word.breakdown && (
-						<div>
-							<h4 className="text-base font-semibold text-blue-400 mb-2">
-								Breakdown
-							</h4>
-							<p className="text-lime-300 leading-relaxed">{word.breakdown}</p>
-						</div>
-					)}
-				</div>
-
-				{/* Footer Stats */}
-				<div className="flex justify-between text-xs text-gray-500 mt-4 pt-3 border-t border-neutral-700">
-					<span>👁️ Viewed: {word.no_of_times_opened || 0}</span>
-					<span>♻️ Revised: {word.no_of_times_revised || 0}</span>
+					</div>
 				</div>
 			</div>
 		</div>

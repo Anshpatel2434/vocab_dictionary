@@ -1,604 +1,336 @@
-import React, { useEffect, useState } from "react";
+// ParaOfWords.jsx
+import React, { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import talkWithAI from "./AI";
-import WordPopup from "./WordPopup"; // Make sure to import the updated component
+import WordPopup from "./WordPopup";
+import WordCard_Popup from "./WordCard_Popup"; // NEW
+import {
+	Sparkles,
+	Loader2,
+	Copy,
+	FileText,
+	Book,
+	PenSquare,
+} from "lucide-react";
 
+// --- Main Component ---
 const ParaOfWords = ({
 	allWords,
 	isSessionActive,
 	onWordClick,
 	clickedWords = new Set(),
 }) => {
-	const [generateParagraph, setGenerateParagraph] = useState(false);
+	// --- State Management (Mostly Unchanged) ---
 	const [generatedContent, setGeneratedContent] = useState("");
 	const [loading, setLoading] = useState(false);
-	const [selectedWords, setSelectedWords] = useState([]);
-	const [contentType, setContentType] = useState("paragraph");
+	const [selectedWordsForAI, setSelectedWordsForAI] = useState([]);
+	const [contentType, setContentType] = useState("story");
 	const [showContent, setShowContent] = useState(false);
-
-	useEffect(() => {
-		if (generateParagraph && allWords.length > 0) {
-			handleGenerate();
-		}
-	}, [generateParagraph]);
-
 	const [showPopup, setShowPopup] = useState(false);
 	const [selectedWordForPopup, setSelectedWordForPopup] = useState(null);
 
-	const closePopup = () => {
-		setShowPopup(false);
-		setSelectedWordForPopup(null);
-	};
+	// --- Upgraded AI Prompt Engineering ---
 
-	// Transform word objects into AI-optimized format
-	const transformWordsForAI = (words) => {
-		return words.map((wordObj) => ({
-			word: wordObj.word,
-			pronunciation: wordObj.pronunciation,
-			meaning: wordObj.meaning[0]?.meaning || "No meaning available",
-			example: wordObj.meaning[0]?.example || "No example available",
-			synonyms: wordObj.synonyms || [],
-			antonyms: wordObj.antonyms || [],
-			difficulty:
-				wordObj.no_of_times_opened === 0
-					? "challenging"
-					: wordObj.no_of_times_opened <= 2
-					? "intermediate"
-					: "familiar",
-			context_hint: wordObj.relate_with || "",
-			origin: wordObj.origin || "",
-		}));
-	};
+	const { wordsForAI, wordStats } = useMemo(() => {
+		if (!allWords || allWords.length === 0) {
+			return {
+				wordsForAI: [],
+				wordStats: { challenging: 0, intermediate: 0, familiar: 0 },
+			};
+		}
 
-	// Prioritize words based on usage frequency and difficulty
-	const prioritizeWords = (transformedWords) => {
-		return transformedWords.sort((a, b) => {
-			// Prioritize less opened words first
-			const aOpened =
-				allWords.find((w) => w.word === a.word)?.no_of_times_opened || 0;
-			const bOpened =
-				allWords.find((w) => w.word === b.word)?.no_of_times_opened || 0;
+		const transformed = allWords.map((wordObj) => {
+			const opened = wordObj.no_of_times_opened || 0;
+			let difficulty;
+			if (opened === 0) difficulty = "challenging";
+			else if (opened <= 2) difficulty = "intermediate";
+			else difficulty = "familiar";
 
-			if (aOpened !== bOpened) {
-				return aOpened - bOpened; // Less opened words first
-			}
-
-			// Secondary sort by word length (longer words might be more complex)
-			return b.word.length - a.word.length;
+			return {
+				word: wordObj.word,
+				meaning: wordObj.meaning[0]?.meaning || "not available",
+				example: wordObj.meaning[0]?.example || "not available",
+				difficulty: difficulty,
+			};
 		});
-	};
 
+		const sorted = [...transformed].sort((a, b) => {
+			const difficultyOrder = { challenging: 0, intermediate: 1, familiar: 2 };
+			return difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty];
+		});
+
+		const stats = {
+			challenging: transformed.filter((w) => w.difficulty === "challenging")
+				.length,
+			intermediate: transformed.filter((w) => w.difficulty === "intermediate")
+				.length,
+			familiar: transformed.filter((w) => w.difficulty === "familiar").length,
+		};
+
+		return { wordsForAI: sorted, wordStats: stats };
+	}, [allWords]);
+
+	// --- THIS IS THE NEW, UPGRADED PROMPT FUNCTION ---
 	const createOptimizedPrompt = (wordData, type) => {
-		// Group words by difficulty for better AI understanding
-		const challengingWords = wordData.filter(
-			(w) => w.difficulty === "challenging"
-		);
-		const intermediateWords = wordData.filter(
-			(w) => w.difficulty === "intermediate"
-		);
-		const familiarWords = wordData.filter((w) => w.difficulty === "familiar");
-
-		// Create detailed word information for AI
-		const wordDetails = wordData
+		const wordListMarkdown = wordData
 			.map(
 				(w) =>
-					`"${w.word}" (${w.pronunciation}) - ${w.meaning}. Example: ${
-						w.example
-					}. Synonyms: ${w.synonyms.join(", ")}${
-						w.context_hint ? `. Context: ${w.context_hint}` : ""
-					}`
+					`- **${w.word}**: (${w.difficulty}) ${w.meaning}. Must be used in a context that reflects this meaning.`
 			)
 			.join("\n");
 
-		const prompts = {
-			paragraph: `Create a coherent, engaging paragraph (200-250 words) using ALL of these vocabulary words naturally and meaningfully. Each word must be used exactly once in its proper context.
-
-VOCABULARY WORDS TO USE:
-${wordDetails}
-
-REQUIREMENTS:
-- Use every single word from the list above
-- Make the paragraph flow naturally and be engaging to read
-- Ensure each word is used in its correct context based on the provided meaning
-- Bold each vocabulary word when you use it (wrap in **word**)
-- Choose a theme that allows natural incorporation of all words
-- Prioritize challenging words (${challengingWords
-				.map((w) => w.word)
-				.join(", ")}) by using them in prominent positions
-- Make the content educational and memorable
-
-The paragraph should read naturally while demonstrating the proper usage of each vocabulary word.`,
-
-			story: `Write a creative short story (300-400 words) that incorporates ALL of these vocabulary words naturally within the narrative. Each word must be used exactly once.
-
-VOCABULARY WORDS TO USE:
-${wordDetails}
-
-REQUIREMENTS:
-- Use every single word from the list above
-- Create an engaging plot with characters
-- Ensure each word fits naturally into the story context
-- Bold each vocabulary word when you use it (wrap in **word**)
-- Make the story memorable and entertaining
-- Focus on using challenging words (${challengingWords
-				.map((w) => w.word)
-				.join(", ")}) in key story moments
-- Ensure the story flows naturally despite incorporating all words
-
-Create a compelling narrative that serves as an effective vocabulary learning tool.`,
-
-			essay: `Write a structured mini-essay (350-450 words) on a relevant topic that naturally incorporates ALL of these vocabulary words. Each word must be used exactly once.
-
-VOCABULARY WORDS TO USE:
-${wordDetails}
-
-REQUIREMENTS:
-- Use every single word from the list above
-- Structure with clear introduction, body paragraphs, and conclusion
-- Ensure each word is used meaningfully and contributes to the argument
-- Bold each vocabulary word when you use it (wrap in **word**)
-- Choose a topic that allows natural use of all provided words
-- Use challenging words (${challengingWords
-				.map((w) => w.word)
-				.join(", ")}) in strong argumentative positions
-- Maintain academic tone while being engaging
-- Ensure logical flow and coherent argument structure
-
-The essay should demonstrate sophisticated vocabulary usage while maintaining clarity and persuasiveness.`,
+		const personaPrompts = {
+			story:
+				"You are a master storyteller and vocabulary expert. Your task is to write a captivating short story.",
+			paragraph:
+				"You are a skilled essayist and linguist. Your task is to write a coherent and insightful paragraph on a compelling theme.",
+			essay:
+				"You are a professional academic writer and editor. Your task is to construct a persuasive mini-essay with a clear thesis.",
 		};
-		return prompts[type] || prompts.paragraph;
+
+		const basePrompt = `
+        ${personaPrompts[type]}
+
+        Your primary goal is to seamlessly weave the following vocabulary words into your writing. Each word must be used exactly once. The integration must feel natural and intelligent, not forced.
+
+        **Vocabulary List:**
+        ${wordListMarkdown}
+
+        **Core Requirements:**
+        1.  **Natural Integration:** The words must feel like a natural part of the narrative or argument, not a vocabulary list.
+        2.  **Contextual Accuracy:** Each word's usage must perfectly match its provided meaning.
+        3.  **Thematic Cohesion:** Create a single, unifying theme (for a story, this means a plot; for an essay, a central thesis) that logically connects all the words.
+        4.  **Highlighting:** You MUST bold every vocabulary word from the list by wrapping it in double asterisks, like **this**.
+        5.  **Word Count:** Adhere to a word count of approximately 250-350 words.
+
+        **AVOID:**
+        -   Creating sentences that are simple definitions of the words.
+        -   A narrative or argument that feels disjointed or forced.
+        -   Using any word more than once.
+
+        Begin writing now.
+        `;
+		return basePrompt;
 	};
 
 	async function handleGenerate() {
-		if (allWords.length === 0) {
-			toast.error("No words available to generate content");
-			setGenerateParagraph(false);
-			return;
-		}
+		if (wordsForAI.length === 0) return toast.error("No words available.");
+
+		setLoading(true);
+		setShowContent(false);
+		setGeneratedContent("");
 
 		try {
-			setLoading(true);
-
-			// Transform and prioritize ALL words
-			const transformedWords = transformWordsForAI(allWords);
-			const prioritizedWords = prioritizeWords(transformedWords);
-
-			// For very large word lists, we might need to chunk them
-			// But let's try to use all words first
-			const maxWords = Math.min(prioritizedWords.length, 50); // Limit to 50 words to avoid token limits
-			const wordsToUse = prioritizedWords.slice(0, maxWords);
-
-			setSelectedWords(wordsToUse.map((w) => w.word));
+			const wordsToUse = wordsForAI.slice(0, 50); // Use up to 50 prioritized words
+			setSelectedWordsForAI(wordsToUse);
 
 			const prompt = createOptimizedPrompt(wordsToUse, contentType);
-
-			console.log("Generated prompt:", prompt); // For debugging
-
 			const response = await talkWithAI(prompt);
 
-			if (response && response.text) {
-				setGeneratedContent(response.text);
+			if (response) {
+				setGeneratedContent(response);
 				setShowContent(true);
-				toast.success(
-					`${
-						contentType.charAt(0).toUpperCase() + contentType.slice(1)
-					} generated using ${wordsToUse.length} words!`
-				);
+				toast.success(`Generated a new ${contentType}!`);
 			} else {
-				throw new Error("No content received");
+				throw new Error("AI did not return content.");
 			}
 		} catch (error) {
+			toast.error("AI content generation failed.");
 			console.error("Error generating content:", error);
-			toast.error("Failed to generate content. Please try again.");
 		} finally {
 			setLoading(false);
-			setGenerateParagraph(false);
 		}
 	}
 
+	// --- Event Handlers & Content Rendering (with minor updates) ---
 	const handleTypeChange = (type) => {
 		setContentType(type);
-		setShowContent(false);
-		setGeneratedContent("");
 	};
-
 	const copyToClipboard = () => {
 		navigator.clipboard.writeText(generatedContent);
 		toast.success("Content copied to clipboard!");
 	};
+	const closePopup = () => {
+		setShowPopup(false);
 
-	// Get word statistics
-	const getWordStats = () => {
-		const challenging = allWords.filter(
-			(w) => w.no_of_times_opened >= 5
-		).length;
-		const intermediate = allWords.filter(
-			(w) => w.no_of_times_opened < 5 && w.no_of_times_opened > 1
-		).length;
-		const familiar = allWords.filter((w) => w.no_of_times_opened <= 1).length;
-
-		return { challenging, intermediate, familiar, total: allWords.length };
+		setSelectedWordForPopup(null);
 	};
 
-	// Enhanced word click handler for session mode
-	const handleWordClickInContent = (event, word) => {
-		if (!isSessionActive) return;
-
-		// Find the word object from allWords
-		const wordObj = allWords.find(
-			(w) => w.word.toLowerCase() === word.toLowerCase()
-		);
-
-		if (wordObj && onWordClick) {
-			onWordClick(wordObj);
-
-			// Show popup with the full word object and click position
-			setSelectedWordForPopup({
-				...wordObj, // Pass the complete word object
-				clickPosition: {
-					x: event.clientX,
-					y: event.clientY,
-				},
-			});
-			setShowPopup(true);
+	useEffect(() => {
+		if (isSessionActive) {
+			window.handleVocabWordClick = (event, word) => {
+				const wordObj = allWords.find(
+					(w) => w.word.toLowerCase() === word.toLowerCase()
+				);
+				if (wordObj && onWordClick) {
+					onWordClick(wordObj);
+					setSelectedWordForPopup({
+						...wordObj,
+						clickPosition: { x: event.clientX, y: event.clientY },
+					});
+					setShowPopup(true);
+				}
+			};
 		}
-	};
+		return () => {
+			if (window.handleVocabWordClick) delete window.handleVocabWordClick;
+		};
+	}, [isSessionActive, allWords, onWordClick]);
 
-	// Enhanced content rendering with clickable words during session
 	const renderContentWithClickableWords = (content) => {
 		if (!isSessionActive) {
 			return content.replace(
 				/\*\*(.*?)\*\*/g,
-				'<strong class="text-purple-400">$1</strong>'
+				'<strong class="text-cyan-300 font-semibold">$1</strong>'
 			);
 		}
-
 		return content.replace(/\*\*(.*?)\*\*/g, (match, word) => {
 			const wordObj = allWords.find(
 				(w) => w.word.toLowerCase() === word.toLowerCase()
 			);
 			const isClicked = wordObj && clickedWords.has(wordObj._id);
-
-			return `<span 
-				class="vocabulary-word cursor-pointer font-semibold px-1.5 py-0.5 mx-0.5 rounded-md transition-colors duration-200 ${
-					isClicked
-						? "text-blue-200 bg-blue-700/10 border border-blue-500/30"
-						: "text-yellow-100 bg-yellow-700/10 border border-yellow-500/20 hover:bg-yellow-600/10"
-				}"
-				data-word="${word}"
-				onclick="handleVocabWordClick(event, '${word}')"
-			>${word}</span>`;
+			return `<span class="vocabulary-word cursor-pointer font-semibold px-1.5 py-0.5 mx-0.5 rounded-md transition-all duration-200 ${
+				isClicked
+					? "bg-blue-800 text-white ring-1 ring-blue-500"
+					: "bg-yellow-800/50 text-yellow-200 hover:bg-yellow-700/50"
+			}" data-word="${word}" onclick="handleVocabWordClick(event, '${word}')">${word}</span>`;
 		});
 	};
 
-	// Add click handler to window for vocabulary words
-	useEffect(() => {
-		if (isSessionActive) {
-			window.handleVocabWordClick = (event, word) => {
-				handleWordClickInContent(event, word);
-			};
-		}
-
-		return () => {
-			if (window.handleVocabWordClick) {
-				delete window.handleVocabWordClick;
-			}
-		};
-	}, [isSessionActive, allWords, onWordClick]);
-
-	if (allWords.length === 0) {
-		return null;
-	}
-
-	const stats = getWordStats();
+	if (allWords.length === 0) return null;
 
 	return (
-		<div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8 relative">
-			{/* Word Popup - Updated to use the correct prop structure */}
-			{showPopup && selectedWordForPopup && (
+		<div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+			{showPopup && (
 				<WordPopup
 					word={selectedWordForPopup}
 					onClose={closePopup}
 					position={selectedWordForPopup.clickPosition}
 				/>
 			)}
-			<div
-				className={`bg-gray-900 rounded-lg border border-gray-700 p-6 transition-all duration-500 ${
-					isSessionActive
-						? "ring-2 ring-blue-500 shadow-2xl shadow-blue-500/20"
-						: ""
-				}`}
-			>
-				{/* Header */}
-				<div
-					className={`flex flex-col md:flex-row md:items-center md:justify-between mb-6 transition-opacity duration-300 ${
-						isSessionActive && !showContent ? "opacity-30" : "opacity-100"
-					}`}
-				>
-					<div className="mb-4 md:mb-0">
-						<h2 className="text-2xl font-bold text-white mb-2">
-							<span className="text-purple-400">AI</span> Content Generator
-							{isSessionActive && (
-								<span className="ml-3 text-sm bg-green-600 text-white px-3 py-1 rounded-full">
-									Session Active
-								</span>
-							)}
+
+			{/* UPGRADED Main Container with Glassmorphism Effect */}
+			<div className="relative bg-neutral-900/50 border border-neutral-700/50 rounded-2xl shadow-2xl shadow-black/30 backdrop-blur-xl p-6">
+				<div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl pointer-events-none"></div>
+
+				{/* --- Control Panel --- */}
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center pb-6 border-b border-neutral-700/80">
+					<div className="md:col-span-1">
+						<h2 className="text-xl font-bold text-white flex items-center gap-3">
+							<Sparkles className="text-purple-400" /> AI Content Studio
 						</h2>
-						<p className="text-gray-400">
-							{isSessionActive
-								? "Click on highlighted words in the generated content to view details"
-								: "Generate engaging content using ALL words from your dictionary"}
+						<p className="text-sm text-neutral-400 mt-1">
+							Generate dynamic content from your word list.
 						</p>
-						<div className="mt-2 text-sm text-gray-500">
-							Dictionary: {stats.total} words ({stats.challenging} challenging,{" "}
-							{stats.intermediate} intermediate, {stats.familiar} familiar)
-							{isSessionActive && clickedWords.size > 0 && (
-								<span className="ml-3 text-green-400">
-									• {clickedWords.size} words explored
-								</span>
-							)}
-						</div>
 					</div>
 
-					{/* Content Type Selector - Hidden during session */}
-					{!isSessionActive && (
-						<div className="flex gap-2">
-							{["paragraph", "story", "essay"].map((type) => (
-								<button
-									key={type}
-									onClick={() => handleTypeChange(type)}
-									disabled={contentType === type}
-									className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-										contentType === type
-											? "bg-purple-600 text-white"
-											: "bg-gray-800 text-gray-300 hover:bg-gray-700"
-									}`}
-								>
-									{type.charAt(0).toUpperCase() + type.slice(1)}
-								</button>
-							))}
-						</div>
-					)}
-				</div>
+					<div className="flex justify-center items-center bg-neutral-800/50 p-1.5 rounded-full border border-neutral-700">
+						{["story", "paragraph", "essay"].map((type) => (
+							<button
+								key={type}
+								onClick={() => handleTypeChange(type)}
+								className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 ${
+									contentType === type
+										? "bg-purple-600 text-white shadow-md"
+										: "text-neutral-300 hover:bg-neutral-700/50"
+								}`}
+							>
+								{type === "story" && <Book size={16} />}
+								{type === "paragraph" && <FileText size={16} />}
+								{type === "essay" && <PenSquare size={16} />}
+								{type.charAt(0).toUpperCase() + type.slice(1)}
+							</button>
+						))}
+					</div>
 
-				{/* Generate Button - Hidden during session unless no content */}
-				{(!isSessionActive || !showContent) && (
-					<div
-						className={`flex justify-center mb-6 transition-opacity duration-300 ${
-							isSessionActive && showContent ? "opacity-30" : "opacity-100"
-						}`}
-					>
+					<div className="flex justify-end">
 						<button
-							onClick={() => setGenerateParagraph(true)}
-							disabled={loading || allWords.length === 0}
-							className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200"
+							onClick={handleGenerate}
+							disabled={loading}
+							className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-opacity duration-200"
 						>
 							{loading ? (
 								<>
-									<svg
-										className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-										xmlns="http://www.w3.org/2000/svg"
-										fill="none"
-										viewBox="0 0 24 24"
-									>
-										<circle
-											className="opacity-25"
-											cx="12"
-											cy="12"
-											r="10"
-											stroke="currentColor"
-											strokeWidth="4"
-										></circle>
-										<path
-											className="opacity-75"
-											fill="currentColor"
-											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-										></path>
-									</svg>
-									Generating...
+									<Loader2 className="animate-spin" /> Generating...
 								</>
 							) : (
 								<>
-									<svg
-										className="w-5 h-5"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-										xmlns="http://www.w3.org/2000/svg"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth="2"
-											d="M13 10V3L4 14h7v7l9-11h-7z"
-										></path>
-									</svg>
-									Generate{" "}
-									{contentType.charAt(0).toUpperCase() + contentType.slice(1)}
-									<span className="text-purple-200 ml-1">
-										({Math.min(stats.total, 50)} words)
-									</span>
+									<Sparkles size={18} /> Generate {contentType}
 								</>
 							)}
 						</button>
 					</div>
-				)}
+				</div>
 
-				{/* Selected Words Display - Dimmed during session */}
-				{selectedWords.length > 0 && (
-					<div
-						className={`mb-6 p-4 bg-gray-800 rounded-lg border border-gray-600 transition-opacity duration-300 ${
-							isSessionActive ? "opacity-40" : "opacity-100"
-						}`}
-					>
-						<h3 className="text-lg font-semibold text-white mb-3">
-							Words Used in Generation ({selectedWords.length}):
-						</h3>
-						<div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-							{selectedWords.map((word, index) => (
-								<span
-									key={index}
-									className="px-3 py-1 bg-purple-600 text-white text-sm rounded-full"
-								>
-									{word}
-								</span>
-							))}
+				{/* --- Word Stats & Session Indicator --- */}
+				<div className="flex justify-between items-center py-4">
+					<div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-neutral-400">
+						<span>
+							<strong className="text-red-400">{wordStats.challenging}</strong>{" "}
+							Challenging
+						</span>
+						<span>
+							<strong className="text-yellow-400">
+								{wordStats.intermediate}
+							</strong>{" "}
+							Intermediate
+						</span>
+						<span>
+							<strong className="text-green-400">{wordStats.familiar}</strong>{" "}
+							Familiar
+						</span>
+					</div>
+					{isSessionActive && (
+						<div className="flex items-center gap-2 text-sm font-semibold text-cyan-300 bg-cyan-900/50 px-3 py-1.5 rounded-full">
+							<div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+							Interactive Session is LIVE
 						</div>
+					)}
+				</div>
+
+				{/* --- Content Stage --- */}
+				{loading && (
+					<div className="w-full min-h-[300px] bg-neutral-800/50 rounded-xl p-6 animate-pulse">
+						<div className="h-4 bg-neutral-700 rounded w-3/4 mb-4"></div>
+						<div className="h-4 bg-neutral-700 rounded w-full mb-2"></div>
+						<div className="h-4 bg-neutral-700 rounded w-full mb-2"></div>
+						<div className="h-4 bg-neutral-700 rounded w-5/6"></div>
 					</div>
 				)}
-
-				{/* Generated Content - Enhanced for session mode */}
 				{showContent && generatedContent && (
 					<div
-						className={`bg-gray-800 rounded-lg border border-gray-600 p-6 transition-all duration-500 ${
+						className={`min-h-[300px] bg-neutral-800/30 rounded-xl p-6 border transition-all duration-500 ${
 							isSessionActive
-								? "ring-2 ring-yellow-500 shadow-xl shadow-yellow-500/20"
-								: ""
+								? "border-cyan-500/50 ring-2 ring-cyan-500/20"
+								: "border-neutral-700"
 						}`}
 					>
-						<div className="flex justify-between items-center mb-4">
-							<h3 className="text-xl font-semibold text-white">
-								Generated{" "}
-								{contentType.charAt(0).toUpperCase() + contentType.slice(1)}
-								{isSessionActive && (
-									<span className="ml-3 text-sm bg-yellow-600 text-white px-2 py-1 rounded">
-										Interactive Mode
-									</span>
-								)}
-							</h3>
-							<button
-								onClick={copyToClipboard}
-								className={`flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-all duration-200 ${
-									isSessionActive ? "opacity-50" : "opacity-100"
-								}`}
-								disabled={isSessionActive}
-							>
-								<svg
-									className="w-4 h-4"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-									xmlns="http://www.w3.org/2000/svg"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth="2"
-										d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-									></path>
-								</svg>
-								Copy
-							</button>
-						</div>
-						{/* Session Instructions */}
+						<div
+							className="prose prose-invert prose-p:text-neutral-300 prose-strong:text-cyan-300 max-w-none leading-relaxed whitespace-pre-wrap"
+							dangerouslySetInnerHTML={{
+								__html: renderContentWithClickableWords(generatedContent),
+							}}
+						/>
 						{isSessionActive && (
-							<div className="mb-4 p-4 bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-400/30 rounded-xl backdrop-blur-sm">
-								<div className="flex items-center gap-3 text-blue-300">
-									<div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-									<span className="font-semibold text-white">
-										Interactive Learning Mode
-									</span>
-								</div>
-								<p className="text-blue-200 text-sm mt-2 leading-relaxed">
-									Tap any highlighted word to discover its meaning,
-									pronunciation, and examples.
-									<span className="inline-block ml-1 px-2 py-0.5 bg-blue-600/30 rounded text-xs">
-										Explored words turn blue
-									</span>
-								</p>
-							</div>
-						)}
-						<div className="prose prose-gray max-w-none">
-							<div
-								className="text-gray-300 leading-relaxed whitespace-pre-wrap"
-								dangerouslySetInnerHTML={{
-									__html: renderContentWithClickableWords(generatedContent),
-								}}
-							/>
-						</div>
-						{/* Session Progress */}
-						// Updated Session Progress styling:
-						{isSessionActive && (
-							<div className="mt-6 p-4 bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-400/30 rounded-xl">
-								<div className="flex justify-between items-center text-emerald-300 mb-3">
-									<span className="font-semibold flex items-center gap-2">
-										<span className="text-lg">📊</span>
-										Learning Progress
-									</span>
-									<span className="text-emerald-100 font-mono">
-										{clickedWords.size} / {selectedWords.length}
-									</span>
-								</div>
-								<div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
+							<div className="mt-6 border-t border-neutral-700 pt-4">
+								<div className="w-full bg-neutral-700 rounded-full h-3 overflow-hidden">
 									<div
-										className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500 ease-out shadow-lg shadow-emerald-500/30"
+										className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-500"
 										style={{
 											width: `${
-												(clickedWords.size / selectedWords.length) * 100
+												(clickedWords.size / selectedWordsForAI.length) * 100
 											}%`,
 										}}
 									></div>
 								</div>
-								<p className="text-emerald-200 text-xs mt-2 text-center">
-									{clickedWords.size === selectedWords.length
-										? "🎉 Amazing! You've explored all words!"
-										: `${
-												selectedWords.length - clickedWords.size
-										  } words left to explore`}
+								<p className="text-center text-xs text-neutral-400 mt-2">
+									Progress: {clickedWords.size} / {selectedWordsForAI.length}{" "}
+									words explored
 								</p>
 							</div>
 						)}
 					</div>
 				)}
-
-				{/* Enhanced Info Section - Dimmed during session */}
-				<div
-					className={`mt-6 p-4 bg-gray-800 rounded-lg border border-gray-600 transition-opacity duration-300 ${
-						isSessionActive ? "opacity-40" : "opacity-100"
-					}`}
-				>
-					<div className="flex items-start gap-3">
-						<svg
-							className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth="2"
-								d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-							></path>
-						</svg>
-						<div className="text-sm text-gray-400">
-							<p className="mb-2">
-								<strong className="text-gray-300">
-									Enhanced AI Processing:
-								</strong>
-								Uses ALL words from your dictionary with detailed context
-								including meanings, examples, synonyms, and difficulty levels
-								for optimal content generation.
-							</p>
-							<p className="mb-2">
-								<strong className="text-gray-300">Smart Prioritization:</strong>
-								Prioritizes challenging and less-viewed words to maximize
-								learning potential.
-							</p>
-							<p>
-								<strong className="text-gray-300">
-									{isSessionActive
-										? "Interactive Learning:"
-										: "Vocabulary Mastery:"}
-								</strong>
-								{isSessionActive
-									? " Click highlighted words to explore meanings and track your progress through the vocabulary."
-									: " Bold words in generated content make it easy to identify and learn vocabulary in context."}
-							</p>
-						</div>
-					</div>
-				</div>
 			</div>
 		</div>
 	);

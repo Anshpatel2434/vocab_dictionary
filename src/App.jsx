@@ -6,7 +6,6 @@ import AddWordsPage from "./components/AddWordsPage";
 import Dictionary from "./components/Dictionary";
 import RevisionPage from "./components/RevisionPage";
 import ReviseWords from "./components/ReviseWords";
-import RevisionSession from "./components/RevisionSession";
 
 function App() {
 	return (
@@ -18,7 +17,6 @@ function App() {
 				<Route path="/dictionary/:page" element={<Dictionary />} />
 				<Route path="/revisionSelect" element={<RevisionPage />} />
 				<Route path="/revisionPage/:page" element={<ReviseWords />} />
-				<Route path="/revisionSession" element={<RevisionSession />} />
 			</Routes>
 		</BrowserRouter>
 	);
